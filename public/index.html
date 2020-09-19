@@ -58,8 +58,6 @@
     </style>
 
     <script>
-        let scale = 7;
-
         function parseHeader(header) {
             let words = splitWords(header);
             let status = "waiting_width";
@@ -73,11 +71,13 @@
                             status = "waiting_top";
                         } else if (word === "base") {
                             status = "waiting_bottom";
+                        } else if (word === "escala") {
+                            status = "waiting_scale";
                         }
                     }
                     continue;
                 } else {
-                    dim = dim[1]
+                    dim = parseInt(dim[1]);
                     if (status === "waiting_width") {
                         dimensions.width = dim;
                         status = "waiting_height";
@@ -89,6 +89,9 @@
                         status = "waiting_extras";
                     } else if (status === "waiting_bottom") {
                         dimensions.bottom = dim;
+                        status = "waiting_extras";
+                    } else if (status === "waiting_scale") {
+                        dimensions.scale = dim;
                         status = "waiting_extras";
                     }
                     continue;
@@ -113,7 +116,7 @@
                     if (!dim || isNaN(dim[1])) {
                         throw new Error(`error parsing column: ${part}`);
                     }
-                    return `${dim[1]*scale}px`;
+                    return `${dim[1] * scale}px`;
                 }
             })
             return parts.join(" ");
@@ -163,7 +166,11 @@
                     let part = parts[y][x];
                     if (part === "^" && parts[y - 1][x] instanceof Part) {
                         parts[y][x] = parts[y - 1][x];
-                        parts[y][x].extendY();
+                        // Only extend height again if left neighbor is not an
+                        // extension of the same part already.
+                        if (parts[y][x - 1] != parts[y][x]) {
+                            parts[y][x].extendY();
+                        }
                     } else if (part === ">" && parts[y][x + 1] instanceof Part) {
                         parts[y][x] = parts[y][x + 1];
                         parts[y][x].extendX("right");
@@ -193,39 +200,43 @@
             let style = document.createElement("style");
             style.appendChild(document.createTextNode(`
             .wrapper {
-                width: ${header.width*scale}px;
-                height: ${header.height*scale}px;
+                width: ${header.width * scale}px;
+                height: ${header.height * scale}px;
                 border: 1px solid black;
                 display: grid;
                 grid-template-columns: ${columns};
-                grid-template-rows: ${header.top*scale}px repeat(${parts.height}, 1fr) ${header.bottom*scale}px;
+                grid-template-rows: ${header.top * scale}px repeat(${parts.height}, 1fr) ${header.bottom * scale}px;
             }`))
             document.head.appendChild(style);
         }
 
-        function genParts(parts) {
+        function genParts(header, parts) {
             let width = parts.width;
             let height = parts.height + 2; // lines + top + bottom
 
             let container = document.querySelector(".wrapper");
             container.innerHTML = "";
             // top
-            container.innerHTML += `<div class="top part peripherical-part" style="
+            if (header.top > 0) {
+                container.innerHTML += `<div class="top part peripherical-part" style="
                 grid-column-start: 1;
-                grid-column-end: ${width+1};
+                grid-column-end: ${width + 1};
                 grid-row-start: 1;
                 grid-row-end: 2"
                 data-name="pedra">
             </div>`
+            }
 
             // bottom
-            container.innerHTML += `<div class="bottom part peripherical-part" style="
+            if (header.bottom > 0) {
+                container.innerHTML += `<div class="bottom part peripherical-part" style="
                 grid-column-start: 1;
-                grid-column-end: ${width+1};
+                grid-column-end: ${width + 1};
                 grid-row-start: ${height};
                 grid-row-end: ${height + 1}"
                 data-name="base">
-            </div>`
+                </div>`
+            }
 
             // parts
             for (let part of parts.parts) {
@@ -244,6 +255,11 @@
             console.log(lines);
 
             let header = parseHeader(lines[0])
+            // Make scale globally available to make our lives easier.
+            scale = header.scale;
+            if (!scale) {
+                scale = 5;
+            }
             let columns = parseColumns(lines[1])
             let expectedLength = splitWords(columns).length;
 
@@ -261,7 +277,7 @@
             let parts = parseParts(partsLines);
 
             genContainer(header, columns, parts);
-            genParts(parts);
+            genParts(header, parts);
         }
 
         document.querySelectorAll(".part").forEach(part => {
@@ -285,8 +301,8 @@
             }
 
             document.querySelectorAll(".part").forEach(part => {
-                let width = (new Number(part.offsetWidth/scale)).toFixed(2);
-                let height = (new Number(part.offsetHeight/scale)).toFixed(2);
+                let width = (new Number(part.offsetWidth / scale)).toFixed(2);
+                let height = (new Number(part.offsetHeight / scale)).toFixed(2);
                 part.innerHTML = `
                     <span class='part-name'>${part.dataset.name}</span>
                     <span class='measurements'>${width} x ${height} cm</span>
