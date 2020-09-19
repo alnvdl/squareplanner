@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>squareplanner</title>
+    <style>
+        .output {
+            width: 100%;
+        }
+
+        .textarea {
+            width: 100%;
+            height: 200px;
+        }
+
+        .wrapper {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .part {
+            border: 1px solid black;
+            font-size: 1em;
+        }
+
+        .bottom {
+            background-color: #ccc;
+        }
+
+        .part-name {
+            font-weight: bold;
+        }
+
+        .measurements {
+            font-size: 0.8em;
+        }
+
+        .peripherical-part .part-name {
+            margin-right: 8px;
+        }
+
+        .peripherical-part {
+            font-size: 0.75em;
+        }
+
+        .main-part .part-name {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .top {
+            background-color: black;
+            color: white;
+        }
+    </style>
+
+    <script>
+        let scale = 7;
+
+        function parseHeader(header) {
+            let words = splitWords(header);
+            let status = "waiting_width";
+            let dimension = /(\d+)(\s*)?/;
+            let dimensions = {};
+            for (let word of words) {
+                let dim = word.match(dimension);
+                if (!dim || isNaN(dim[1])) {
+                    if (status === "waiting_extras") {
+                        if (word === "pedra") {
+                            status = "waiting_top";
+                        } else if (word === "base") {
+                            status = "waiting_bottom";
+                        }
+                    }
+                    continue;
+                } else {
+                    dim = dim[1]
+                    if (status === "waiting_width") {
+                        dimensions.width = dim;
+                        status = "waiting_height";
+                    } else if (status === "waiting_height") {
+                        dimensions.height = dim;
+                        status = "waiting_extras";
+                    } else if (status === "waiting_top") {
+                        dimensions.top = dim;
+                        status = "waiting_extras";
+                    } else if (status === "waiting_bottom") {
+                        dimensions.bottom = dim;
+                        status = "waiting_extras";
+                    }
+                    continue;
+                }
+            }
+            return dimensions;
+        }
+
+        function splitWords(row) {
+            return row.trim().split(/\s+/)
+        }
+
+
+        function parseColumns(columns) {
+            let parts = splitWords(columns);
+            let dimensionRegex = /(\d+)[cm]?/;
+            parts = parts.map(part => {
+                if (part === "*") {
+                    return "1fr";
+                } else {
+                    let dim = part.match(dimensionRegex);
+                    if (!dim || isNaN(dim[1])) {
+                        throw new Error(`error parsing column: ${part}`);
+                    }
+                    return `${dim[1]*scale}px`;
+                }
+            })
+            return parts.join(" ");
+        }
+
+        class Part {
+            constructor(name, x, y) {
+                this.name = name;
+                this.fromX = parseInt(x);
+                this.toX = this.fromX + 1;
+                this.fromY = parseInt(y);
+                this.toY = this.fromY + 1;
+            }
+
+            extendX(dir) {
+                if (dir === "right") {
+                    this.fromX--;
+                } else if (dir === "left") {
+                    this.toX++;
+                }
+            }
+
+            extendY() {
+                this.toY++;
+            }
+        }
+
+        function parseParts(lines) {
+            let parts = []
+            // First-pass: resolve declared parts.
+            for (let y = 0; y < lines.length; y++) {
+                let line = []
+                for (let x = 0; x < lines[y].length; x++) {
+                    let part = lines[y][x];
+                    if (part === "^" || part === "<" || part === ">") {
+                        line.push(part);
+                    } else {
+                        line.push(new Part(part, x, y));
+                    }
+                }
+                parts.push(line);
+            }
+
+            // Second-pass: resolve references.
+            for (let y = 0; y < parts.length; y++) {
+                for (let x = 0; x < parts[y].length; x++) {
+                    let part = parts[y][x];
+                    if (part === "^" && parts[y - 1][x] instanceof Part) {
+                        parts[y][x] = parts[y - 1][x];
+                        parts[y][x].extendY();
+                    } else if (part === ">" && parts[y][x + 1] instanceof Part) {
+                        parts[y][x] = parts[y][x + 1];
+                        parts[y][x].extendX("right");
+                    } else if (part === "<" && parts[y][x - 1] instanceof Part) {
+                        parts[y][x] = parts[y][x - 1];
+                        parts[y][x].extendX("left");
+                    }
+                }
+            }
+
+            // This-pass: consolidate.
+            let partsSet = [];
+            for (let y = 0; y < parts.length; y++) {
+                for (let x = 0; x < parts[y].length; x++) {
+                    partsSet.push(parts[y][x])
+                }
+            }
+
+            return {
+                width: parts[0].length,
+                height: parts.length,
+                parts: new Set(partsSet)
+            };
+        }
+
+        function genContainer(header, columns, parts) {
+            let style = document.createElement("style");
+            style.appendChild(document.createTextNode(`
+            .wrapper {
+                width: ${header.width*scale}px;
+                height: ${header.height*scale}px;
+                border: 1px solid black;
+                display: grid;
+                grid-template-columns: ${columns};
+                grid-template-rows: ${header.top*scale}px repeat(${parts.height}, 1fr) ${header.bottom*scale}px;
+            }`))
+            document.head.appendChild(style);
+        }
+
+        function genParts(parts) {
+            let width = parts.width;
+            let height = parts.height + 2; // lines + top + bottom
+
+            let container = document.querySelector(".wrapper");
+            container.innerHTML = "";
+            // top
+            container.innerHTML += `<div class="top part peripherical-part" style="
+                grid-column-start: 1;
+                grid-column-end: ${width+1};
+                grid-row-start: 1;
+                grid-row-end: 2"
+                data-name="pedra">
+            </div>`
+
+            // bottom
+            container.innerHTML += `<div class="bottom part peripherical-part" style="
+                grid-column-start: 1;
+                grid-column-end: ${width+1};
+                grid-row-start: ${height};
+                grid-row-end: ${height + 1}"
+                data-name="base">
+            </div>`
+
+            // parts
+            for (let part of parts.parts) {
+                container.innerHTML += `<div class="part main-part" style="
+                    grid-column-start: ${part.fromX + 1};
+                    grid-column-end: ${part.toX + 1};
+                    grid-row-start: ${part.fromY + 2};
+                    grid-row-end: ${part.toY + 2}"
+                    data-name="${part.name}"></div>`
+            }
+        }
+
+        function parse(spec) {
+            let lines = spec.split("\n");
+            lines = lines.filter(line => line.trim().length > 0 && line.trim()[0] !== "#");
+            console.log(lines);
+
+            let header = parseHeader(lines[0])
+            let columns = parseColumns(lines[1])
+            let expectedLength = splitWords(columns).length;
+
+
+            let partsLines = lines.slice(2).map(splitWords);
+            if (partsLines.length == 0) {
+                throw new Error("you need to have at least one line declaring parts");
+            }
+            for (line in partsLines) {
+                if (partsLines[line].length != expectedLength) {
+                    throw new Error(`line ${line} has more or less columns than the ${expectedLength} that are expected`);
+                }
+            }
+
+            let parts = parseParts(partsLines);
+
+            genContainer(header, columns, parts);
+            genParts(parts);
+        }
+
+        document.querySelectorAll(".part").forEach(part => {
+            let width = part.offsetWidth;
+            let height = part.offsetHeight;
+            part.innerHTML = `${width} x ${height}`;
+        });
+
+        function refresh() {
+            let container = document.createElement("div");
+            container.className = "wrapper";
+            let output = document.querySelector(".output")
+            output.innerHTML = "";
+            output.appendChild(container);
+
+            try {
+                parse(document.querySelector(".textarea").value)
+            } catch (e) {
+                document.querySelector(".output").innerHTML = e;
+                console.error(e);
+            }
+
+            document.querySelectorAll(".part").forEach(part => {
+                let width = (new Number(part.offsetWidth/scale)).toFixed(2);
+                let height = (new Number(part.offsetHeight/scale)).toFixed(2);
+                part.innerHTML = `
+                    <span class='part-name'>${part.dataset.name}</span>
+                    <span class='measurements'>${width} x ${height} cm</span>
+                `;
+            });
+        }
+    </script>
+</head>
+
+<body onload="refresh()">
+    <div class="controls">
+        <textarea name="textarea" class="textarea" onkeyup="refresh()">
+# Declare the basic measurements
+bancada de 200cm x 92cm com pedra de 3cm e base de 15cm
+
+# Specify the columns
+50cm      *        *     20cm
+
+# And then declare the actual parts.
+# ^, >, and <  can be used to extend the neighboring parts.
+gaveta  porta    porta   gaveta
+gaveta    ^        ^     gaveta
+  ^       ^        >     gaveta
+  >     gaveta   gaveta  <
+        </textarea>
+    </div>
+    <hr>
+    <div class="output"></div>
+
+</body>
+
+</html>
