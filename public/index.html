@@ -168,19 +168,31 @@
             for (let y = 0; y < parts.length; y++) {
                 for (let x = 0; x < parts[y].length; x++) {
                     let part = parts[y][x];
-                    if (part === "^" && parts[y - 1][x] instanceof Part) {
-                        parts[y][x] = parts[y - 1][x];
-                        // Only extend height again if left neighbor is not an
-                        // extension of the same part already.
-                        if (parts[y][x - 1] != parts[y][x]) {
-                            parts[y][x].extendY();
+                    if (part === "^") {
+                        if (parts[y - 1][x] instanceof Part) {
+                            parts[y][x] = parts[y - 1][x];
+                            // Only extend height again if left neighbor is not an
+                            // extension of the same part already.
+                            if (parts[y][x - 1] != parts[y][x]) {
+                                parts[y][x].extendY();
+                            }
+                        } else {
+                            parts[y][x] = undefined;
                         }
-                    } else if (part === ">" && parts[y][x + 1] instanceof Part) {
-                        parts[y][x] = parts[y][x + 1];
-                        parts[y][x].extendX("right");
-                    } else if (part === "<" && parts[y][x - 1] instanceof Part) {
-                        parts[y][x] = parts[y][x - 1];
-                        parts[y][x].extendX("left");
+                    } else if (part === ">") {
+                        if (parts[y][x + 1] instanceof Part) {
+                            parts[y][x] = parts[y][x + 1];
+                            parts[y][x].extendX("right");
+                        } else {
+                            parts[y][x] = undefined;
+                        }
+                    } else if (part === "<") {
+                        if (parts[y][x - 1] instanceof Part) {
+                            parts[y][x] = parts[y][x - 1];
+                            parts[y][x].extendX("left");
+                        } else {
+                            parts[y][x] = undefined;
+                        }
                     }
                 }
             }
@@ -192,6 +204,7 @@
                     partsSet.push(parts[y][x])
                 }
             }
+            partsSet = partsSet.filter(part => part !== undefined)
 
             return {
                 width: parts[0].length,
@@ -280,11 +293,6 @@
 
             if (partsDecls.length == 0) {
                 throw new Error("you need to have at least one line declaring parts");
-            }
-            for (line in partsDecls) {
-                if (partsDecls[line].length != colsDecl.length) {
-                    throw new Error(`line ${line} has ${partsDecls[line].length} columns, different from the the ${colsDecl.length} that are expected`);
-                }
             }
 
             let parts = parsePartsDecls(partsDecls);
