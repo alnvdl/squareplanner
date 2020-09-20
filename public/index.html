@@ -305,8 +305,10 @@
         }
 
         function refresh() {
+            let spec = document.querySelector(".textarea").value
+            window.location.hash = btoa(spec);
             try {
-                parseAndGen(document.querySelector(".textarea").value)
+                parseAndGen(spec)
             } catch (e) {
                 document.querySelector(".output").innerHTML = e;
                 console.error(e);
@@ -321,13 +323,9 @@
                 `;
             });
         }
-    </script>
-</head>
 
-<body onload="refresh()">
-    <div class="controls">
-<textarea name="textarea" class="textarea" onkeyup="refresh()">
-# Declare the basic measurements in the first line.
+        function start() {
+            let spec = `# Declare the basic measurements in the first line.
 # Specify the columns in the second line.
 # Use cm measurements in columns to specify width.
 # Use cm measurements as the first element in other tows to specify height.
@@ -341,7 +339,28 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
 *  drawer   ^        ^       drawer
 *  ^        ^        >       drawer
 *  >        drawer   drawer  <
-</textarea>
+`
+            try {
+                let urlSpec = window.location.hash;
+                if (urlSpec[0] === "#") {
+                    urlSpec = urlSpec.substring(1);
+                }
+                if (urlSpec !== "") {
+                    spec = atob(urlSpec);
+                }
+            } catch (e) {
+                // Nothing to do, ignore errors and keep default spec.
+            }
+
+            document.querySelector(".textarea").value = spec;
+            refresh();
+        }
+    </script>
+</head>
+
+<body onload="start()" onhashchange="start()">
+    <div class="controls">
+        <textarea name="textarea" class="textarea" onkeyup="refresh()"></textarea>
     </div>
     <div class="output"></div>
 
