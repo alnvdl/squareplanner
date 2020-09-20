@@ -27,16 +27,8 @@
             padding: 4px;
         }
 
-        .bottom {
-            background-color: #ccc;
-        }
-
         .part-name {
             font-weight: bold;
-        }
-
-        .measurements {
-            font-size: 0.8em;
         }
 
         .peripherical-part .part-name {
@@ -53,13 +45,37 @@
             margin-bottom: 4px;
         }
 
+        .measurements {
+            font-size: 0.8em;
+        }
+
         .top {
             background-color: black;
             color: white;
         }
+
+        .bottom {
+            background-color: #ccc;
+        }
     </style>
 
     <script>
+        var defaultSpec = `# Declare the basic measurements in the first line.
+# Specify the columns in the second line.
+# Use cm measurements in columns to specify width.
+# Use cm measurements as the first element in other tows to specify height.
+# * can be used in rows and columns to specify automatic width/height.
+# From the third line onwards, specify the parts.
+# Use <, > and ^ to extend parts to the left, right or above.
+
+cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
+   50cm     *        *       20cm
+*  drawer   door     door    drawer
+*  drawer   ^        ^       drawer
+*  ^        ^        >       drawer
+*  >        drawer   drawer  <
+`
+
         class Part {
             constructor(name, x, y) {
                 this.name = name;
@@ -86,20 +102,20 @@
             return row.trim().split(/\s+/)
         }
 
-        function parseHeader(header) {
-            let words = splitWords(header);
+        function parseHeaderDecl(headerDecl) {
+            let words = splitWords(headerDecl);
             let status = "waiting_width";
             let dimension = /(\d+)(\s*)?/;
-            let dimensions = {};
+            let header = {};
             for (let word of words) {
                 let dim = word.match(dimension);
                 if (!dim || isNaN(dim[1])) {
                     if (status === "waiting_extras") {
                         if (word === "top" || word === "pedra") {
-                            dimensions.topName = word;
+                            header.topName = word;
                             status = "waiting_top";
                         } else if (word === "bottom" || word === "base") {
-                            dimensions.bottomName = word;
+                            header.bottomName = word;
                             status = "waiting_bottom";
                         } else if (word === "scale" || word === "escala") {
                             status = "waiting_scale";
@@ -109,25 +125,25 @@
                 } else {
                     dim = parseInt(dim[1]);
                     if (status === "waiting_width") {
-                        dimensions.width = dim;
+                        header.width = dim;
                         status = "waiting_height";
                     } else if (status === "waiting_height") {
-                        dimensions.height = dim;
+                        header.height = dim;
                         status = "waiting_extras";
                     } else if (status === "waiting_top") {
-                        dimensions.top = dim;
+                        header.top = dim;
                         status = "waiting_extras";
                     } else if (status === "waiting_bottom") {
-                        dimensions.bottom = dim;
+                        header.bottom = dim;
                         status = "waiting_extras";
                     } else if (status === "waiting_scale") {
-                        dimensions.scale = dim;
+                        header.scale = dim;
                         status = "waiting_extras";
                     }
                     continue;
                 }
             }
-            return dimensions;
+            return header;
         }
 
         function parseRowColumnDecl(decl) {
@@ -280,7 +296,7 @@
             if (lines.length == 0) {
                 throw new Error("please provide a spec");
             }
-            let header = parseHeader(lines[0])
+            let header = parseHeaderDecl(lines[0])
             // Make scale globally available to make our lives easier.
             scale = header.scale;
             if (!scale) {
@@ -304,9 +320,19 @@
             gen(header, cols, rows, parts);
         }
 
-        function refresh() {
+        function update() {
             let spec = document.querySelector(".textarea").value
-            window.location.hash = btoa(spec);
+            if (spec.trim() === "") {
+                spec = defaultSpec;
+                document.querySelector(".textarea").value = spec;
+            }
+
+            if (spec == defaultSpec) {
+                window.location.hash = "";
+            } else {
+                window.location.hash = btoa(spec)
+            }
+
             try {
                 parseAndGen(spec)
             } catch (e) {
@@ -325,21 +351,7 @@
         }
 
         function start() {
-            let spec = `# Declare the basic measurements in the first line.
-# Specify the columns in the second line.
-# Use cm measurements in columns to specify width.
-# Use cm measurements as the first element in other tows to specify height.
-# * can be used in rows and columns to specify automatic width/height.
-# From the third line onwards, specify the parts.
-# Use <, > and ^ to extend parts to the left, right or above.
-
-cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
-   50cm     *        *       20cm
-*  drawer   door     door    drawer
-*  drawer   ^        ^       drawer
-*  ^        ^        >       drawer
-*  >        drawer   drawer  <
-`
+            let spec = defaultSpec;
             try {
                 let urlSpec = window.location.hash;
                 if (urlSpec[0] === "#") {
@@ -353,14 +365,14 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             }
 
             document.querySelector(".textarea").value = spec;
-            refresh();
+            update();
         }
     </script>
 </head>
 
 <body onload="start()" onhashchange="start()">
     <div class="controls">
-        <textarea name="textarea" class="textarea" onkeyup="refresh()"></textarea>
+        <textarea name="textarea" class="textarea" onkeyup="update()"></textarea>
     </div>
     <div class="output"></div>
 
