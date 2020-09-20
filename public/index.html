@@ -199,15 +199,20 @@
 
             // This-pass: consolidate.
             let partsSet = [];
+            let maxWidth = 0;
             for (let y = 0; y < parts.length; y++) {
+                if (parts[y].length > maxWidth) {
+                    maxWidth = parts[y].length;
+                }
                 for (let x = 0; x < parts[y].length; x++) {
                     partsSet.push(parts[y][x])
                 }
             }
             partsSet = partsSet.filter(part => part !== undefined)
 
+
             return {
-                width: parts[0].length,
+                width: maxWidth,
                 height: parts.length,
                 parts: new Set(partsSet),
             };
