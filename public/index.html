@@ -17,7 +17,7 @@
 
         .textarea {
             width: 100%;
-            height: 220px;
+            height: 230px;
             font-family: monospace;
         }
 
@@ -329,10 +329,11 @@
 <textarea name="textarea" class="textarea" onkeyup="refresh()">
 # Declare the basic measurements in the first line.
 # Specify the columns in the second line.
-# Use * or cm measurements in columns to specify width.
-# Use * or cm measurements as the first element in other tows to specify height.
+# Use cm measurements in columns to specify width.
+# Use cm measurements as the first element in other tows to specify height.
+# * can be used in rows and columns to specify automatic width/height.
 # From the third line onwards, specify the parts.
-# Use <, > and ^ to extend elements to the left, right or above.
+# Use <, > and ^ to extend parts to the left, right or above.
 
 cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
    50cm     *        *       20cm
