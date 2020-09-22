@@ -60,6 +60,9 @@
     </style>
 
     <script>
+        var scale = 5;
+        var lock = false;
+        var updateTimeout;
         var defaultSpec = `# Declare the basic measurements in the first line.
 # Specify the columns in the second line.
 # Use cm measurements in columns to specify width.
@@ -185,7 +188,7 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                 for (let x = 0; x < parts[y].length; x++) {
                     let part = parts[y][x];
                     if (part === "^") {
-                        if (parts[y - 1][x] instanceof Part) {
+                        if (parts[y - 1] && parts[y - 1][x] instanceof Part) {
                             parts[y][x] = parts[y - 1][x];
                             // Only extend height again if left neighbor is not an
                             // extension of the same part already.
@@ -225,7 +228,6 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                 }
             }
             partsSet = partsSet.filter(part => part !== undefined)
-
 
             return {
                 width: maxWidth,
@@ -330,7 +332,11 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             if (spec == defaultSpec) {
                 window.location.hash = "";
             } else {
-                window.location.hash = btoa(spec)
+                let data = btoa(spec);
+                if (lock) {
+                    data = "lock:" + data;
+                }
+                window.location.hash = data;
             }
 
             try {
@@ -350,6 +356,16 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             });
         }
 
+        function throttledUpdate() {
+            if (updateTimeout) {
+                clearTimeout(updateTimeout);
+            }
+            updateTimeout = setTimeout(() => {
+                update();
+                updateTimeout = null;
+            }, 500);
+        }
+
         function start() {
             let spec = defaultSpec;
             try {
@@ -358,6 +374,16 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                     urlSpec = urlSpec.substring(1);
                 }
                 if (urlSpec !== "") {
+                    if (urlSpec.startsWith("lock:")) {
+                        lock = true;
+                        document.querySelector(".textarea").setAttribute("disabled", "");
+                        urlSpec = urlSpec.substring(5);
+                    }
+                    if (urlSpec.startsWith("unlock:")) {
+                        lock = false;
+                        document.querySelector(".textarea").removeAttribute("disabled");
+                        urlSpec = urlSpec.substring(7);
+                    }
                     spec = atob(urlSpec);
                 }
             } catch (e) {
@@ -372,7 +398,7 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
 
 <body onload="start()" onhashchange="start()">
     <div class="controls">
-        <textarea name="textarea" class="textarea" onkeyup="update()"></textarea>
+        <textarea name="textarea" class="textarea" onkeyup="throttledUpdate()"></textarea>
     </div>
     <div class="output"></div>
 
