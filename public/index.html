@@ -27,6 +27,18 @@
             padding: 4px;
         }
 
+        .part-red {
+            color: red;
+        }
+
+        .part-green {
+            color: green;
+        }
+
+        .part-blue {
+            color: blue;
+        }
+
         .part-name {
             font-weight: bold;
         }
@@ -63,6 +75,14 @@
         var scale = 5;
         var lock = false;
         var updateTimeout;
+        let colorMap = {
+            "red": "part-red",
+            "green": "part-green",
+            "blue": "part-blue",
+            "vermelho": "part-red",
+            "verde": "part-green",
+            "azul": "part-blue",
+        }
         var defaultSpec = `# Declare the basic measurements in the first line.
 # Specify the columns in the second line.
 # Use cm measurements in columns to specify width.
@@ -268,12 +288,14 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
 
             // parts
             for (let part of parts.parts) {
-                container.innerHTML += `<div class="part main-part" style="
+                let [name, color] = part.name.split(":");
+                color = colorMap[color] || "";
+                container.innerHTML += `<div class="part main-part ${color}" style="
                     grid-column-start: ${part.fromX + 1};
                     grid-column-end: ${part.toX + 1};
                     grid-row-start: ${part.fromY + 1 + yOffset};
                     grid-row-end: ${part.toY + 1 + yOffset}"
-                    data-name="${part.name}"></div>`
+                    data-name="${name}"></div>`
             }
 
             container.setAttribute("style", `
