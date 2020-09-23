@@ -19,6 +19,13 @@
             width: 100%;
             height: 230px;
             font-family: monospace;
+            resize: none;
+        }
+
+        .textarea:disabled {
+            border: 0px;
+            color: #000;
+            background-color: #fff;
         }
 
         .part {
@@ -92,11 +99,11 @@
 # Press Ctrl+Alt+f to automatically format the specification.
 
 cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
-   50cm     *        *       20cm
-*  drawer   door     door    drawer
-*  drawer   ^        ^       drawer
-*  ^        ^        >       drawer
-*  >        drawer   drawer  <
+    50cm     *        *        20cm
+*   drawer   door     door     drawer
+*   drawer   ^        ^        drawer
+*   ^        ^        >        drawer
+*   >        drawer   drawer   <
 `
 
         class Part {
@@ -344,50 +351,6 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             gen(header, cols, rows, parts);
         }
 
-        function update() {
-            let spec = document.querySelector(".textarea").value
-            if (spec.trim() === "") {
-                spec = defaultSpec;
-                document.querySelector(".textarea").value = spec;
-            }
-
-            if (spec == defaultSpec) {
-                window.location.hash = "";
-            } else {
-                let data = btoa(spec);
-                if (lock) {
-                    data = "lock:" + data;
-                }
-                window.location.hash = data;
-            }
-
-            try {
-                parseAndGen(spec)
-            } catch (e) {
-                document.querySelector(".output").innerHTML = e;
-                console.error(e);
-            }
-
-            document.querySelectorAll(".part").forEach(part => {
-                let width = (new Number(part.offsetWidth / scale)).toFixed(2);
-                let height = (new Number(part.offsetHeight / scale)).toFixed(2);
-                part.innerHTML = `
-                    <span class='part-name'>${part.dataset.name}</span>
-                    <span class='measurements'>${width} x ${height} cm</span>
-                `;
-            });
-        }
-
-        function throttledUpdate() {
-            if (updateTimeout) {
-                clearTimeout(updateTimeout);
-            }
-            updateTimeout = setTimeout(() => {
-                update();
-                updateTimeout = null;
-            }, 500);
-        }
-
         function format(spec) {
             // Identify lines to format and tokenize them.
             let linesToFormat = []
@@ -457,6 +420,50 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             return lines.join("\n");
         }
 
+        function update() {
+            let spec = document.querySelector(".textarea").value
+            if (spec.trim() === "") {
+                spec = defaultSpec;
+                document.querySelector(".textarea").value = spec;
+            }
+
+            if (spec == defaultSpec) {
+                window.location.hash = "";
+            } else {
+                let data = btoa(spec);
+                if (lock) {
+                    data = "lock:" + data;
+                }
+                window.location.hash = data;
+            }
+
+            try {
+                parseAndGen(spec)
+            } catch (e) {
+                document.querySelector(".output").innerHTML = e;
+                console.error(e);
+            }
+
+            document.querySelectorAll(".part").forEach(part => {
+                let width = (new Number(part.offsetWidth / scale)).toFixed(2);
+                let height = (new Number(part.offsetHeight / scale)).toFixed(2);
+                part.innerHTML = `
+                    <span class='part-name'>${part.dataset.name}</span>
+                    <span class='measurements'>${width} x ${height} cm</span>
+                `;
+            });
+        }
+
+        function throttledUpdate() {
+            if (updateTimeout) {
+                clearTimeout(updateTimeout);
+            }
+            updateTimeout = setTimeout(() => {
+                update();
+                updateTimeout = null;
+            }, 500);
+        }
+
         function start() {
             let spec = defaultSpec;
             try {
@@ -464,31 +471,36 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                 if (urlSpec[0] === "#") {
                     urlSpec = urlSpec.substring(1);
                 }
+
+                if (urlSpec.startsWith("lock:")) {
+                    lock = true;
+                    document.querySelector(".textarea").setAttribute("disabled", "");
+                    urlSpec = urlSpec.substring(5);
+                } else {
+                    lock = false;
+                    document.querySelector(".textarea").removeAttribute("disabled");
+                }
+
                 if (urlSpec !== "") {
-                    if (urlSpec.startsWith("lock:")) {
-                        lock = true;
-                        document.querySelector(".textarea").setAttribute("disabled", "");
-                        urlSpec = urlSpec.substring(5);
-                    }
-                    if (urlSpec.startsWith("unlock:")) {
-                        lock = false;
-                        document.querySelector(".textarea").removeAttribute("disabled");
-                        urlSpec = urlSpec.substring(7);
-                    }
                     spec = atob(urlSpec);
                 }
             } catch (e) {
                 // Nothing to do, ignore errors and keep default spec.
             }
 
-            document.addEventListener('keydown', event => {
-                if (event.ctrlKey && event.altKey && event.key === 'f') {
-                    document.querySelector(".textarea").value = format(document.querySelector(".textarea").value);
-                }
-            });
             document.querySelector(".textarea").value = spec;
             update();
         }
+
+        document.addEventListener('keydown', event => {
+            if (event.ctrlKey && event.altKey && event.key === 'f') {
+                document.querySelector(".textarea").value = format(document.querySelector(".textarea").value);
+            }
+            if (event.ctrlKey && event.altKey && event.key === 'l') {
+                lock = !lock;
+                update();
+            }
+        });
     </script>
 </head>
 
