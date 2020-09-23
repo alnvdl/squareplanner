@@ -73,9 +73,10 @@
 
     <script>
         var scale = 5;
+        var columnSpacing = 3;
         var lock = false;
         var updateTimeout;
-        let colorMap = {
+        var colorMap = {
             "red": "part-red",
             "green": "part-green",
             "blue": "part-blue",
@@ -84,12 +85,11 @@
             "azul": "part-blue",
         }
         var defaultSpec = `# Declare the basic measurements in the first line.
-# Specify the columns in the second line.
-# Use cm measurements in columns to specify width.
-# Use cm measurements as the first element in other tows to specify height.
-# * can be used in rows and columns to specify automatic width/height.
-# From the third line onwards, specify the parts.
+# Specify the columns in the second line. All elements specify width.
+# From the third line onwards, specify the parts. First elements specify height.
+# Use cm measurements or * specify automatic width/height.
 # Use <, > and ^ to extend parts to the left, right or above.
+# Press Ctrl+Alt+f to automatically format the specification.
 
 cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
    50cm     *        *       20cm
@@ -388,6 +388,75 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             }, 500);
         }
 
+        function format(spec) {
+            // Identify lines to format and tokenize them.
+            let linesToFormat = []
+            let lines = spec.split("\n");
+            let passedHeader = false;
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim()
+                if (line.startsWith("#") || line === "") {
+                    continue
+                }
+                if (!passedHeader) {
+                    passedHeader = true;
+                    continue;
+                }
+
+                linesToFormat.push(i);
+            }
+
+            let tokenizedLines = []
+            for (line of linesToFormat) {
+                tokenizedLines.push(splitWords(lines[line]))
+            }
+
+            // Add a blank item to the first row (columns declaration) so that
+            // we format it along with other lines.
+            tokenizedLines[0].unshift("");
+
+            // Normalize number of columns in all rows.
+            let nColumns = 0;
+            for (line of tokenizedLines) {
+                if (line.length > nColumns) {
+                    nColumns = line.length
+                }
+            }
+            for (line of tokenizedLines) {
+                if (line.length < nColumns) {
+                    let fill = new Array(nColumns - line.length).fill("");
+                    line.push(...fill);
+                }
+            }
+
+            // Calculate maximum width of each column.
+            let maxWidth = new Array(nColumns).fill(0);
+            for (line of tokenizedLines) {
+                for (let i = 0; i < line.length; i++) {
+                    if (line[i].length > maxWidth[i]) {
+                        maxWidth[i] = line[i].length;
+                    }
+                }
+            }
+
+            // Adjust width to maximum width + columnSpacing.
+            for (line of tokenizedLines) {
+                for (let i = 0; i < line.length - 1; i++) {
+                    let cur = line[i].length;
+                    let add = maxWidth[i] - cur + columnSpacing;
+                    line[i] = line[i] + " ".repeat(add);
+                }
+            }
+
+            // Place back the adjusted lines and return.
+            let i = 0;
+            for (line of linesToFormat) {
+                lines[line] = tokenizedLines[i++].join("");
+            }
+
+            return lines.join("\n");
+        }
+
         function start() {
             let spec = defaultSpec;
             try {
@@ -412,6 +481,11 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                 // Nothing to do, ignore errors and keep default spec.
             }
 
+            document.addEventListener('keydown', event => {
+                if (event.ctrlKey && event.altKey && event.key === 'f') {
+                    document.querySelector(".textarea").value = format(document.querySelector(".textarea").value);
+                }
+            });
             document.querySelector(".textarea").value = spec;
             update();
         }
