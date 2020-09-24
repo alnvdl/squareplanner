@@ -235,7 +235,11 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                     } else if (part === "<") {
                         if (parts[y][x - 1] instanceof Part) {
                             parts[y][x] = parts[y][x - 1];
-                            parts[y][x].extendX("left");
+                            // Only extend width again if upper neighbor is not
+                            // an extension of the same part already.
+                            if (!parts[y - 1] || parts[y - 1][x] != parts[y][x]) {
+                                parts[y][x].extendX("left");
+                            }
                         } else {
                             parts[y][x] = undefined;
                         }
