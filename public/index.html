@@ -28,6 +28,27 @@
             background-color: #fff;
         }
 
+        @media print {
+            .output {
+                margin-top: 0px !important;
+                break-inside: avoid !important;
+            }
+
+            .textarea {
+                display: none !important;
+            }
+
+            .print-spec {
+                margin-bottom: 0.5cm;
+                display: block !important;
+                font-size: 0.25cm !important;
+            }
+        }
+
+        .print-spec {
+            display: none;
+        }
+
         .part {
             border: 1px solid black;
             font-size: 1em;
@@ -71,10 +92,13 @@
         .top {
             background-color: black;
             color: white;
+            padding-top: 0px;
+            padding-bottom: 0px;
+            margin-top: -2px;
         }
 
         .bottom {
-            background-color: #ccc;
+            background-color: #ddd;
         }
     </style>
 
@@ -424,11 +448,16 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             return lines.join("\n");
         }
 
+        function setTextArea(spec) {
+            document.querySelector(".textarea").value = spec;
+            document.querySelector(".print-spec").innerHTML = spec;
+        }
+
         function update() {
             let spec = document.querySelector(".textarea").value
             if (spec.trim() === "") {
                 spec = defaultSpec;
-                document.querySelector(".textarea").value = spec;
+                setTextArea(spec);
             }
 
             if (spec == defaultSpec) {
@@ -492,13 +521,13 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
                 // Nothing to do, ignore errors and keep default spec.
             }
 
-            document.querySelector(".textarea").value = spec;
+            setTextArea(spec);
             update();
         }
 
         document.addEventListener('keydown', event => {
             if (event.ctrlKey && event.altKey && event.key === 'f') {
-                document.querySelector(".textarea").value = format(document.querySelector(".textarea").value);
+                setTextArea(format(document.querySelector(".textarea").value));
             }
             if (event.ctrlKey && event.altKey && event.key === 'l') {
                 lock = !lock;
@@ -511,6 +540,7 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
 <body onload="start()" onhashchange="start()">
     <div class="controls">
         <textarea name="textarea" class="textarea" onkeyup="throttledUpdate()"></textarea>
+        <pre class="print-spec"></pre>
     </div>
     <div class="output"></div>
 
