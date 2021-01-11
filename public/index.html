@@ -478,8 +478,16 @@ cabinet 200cm x 92cm top 3cm bottom 15cm scale 5
             }
 
             document.querySelectorAll(".part").forEach(part => {
-                let width = (new Number(part.offsetWidth / scale)).toFixed(2);
-                let height = (new Number(part.offsetHeight / scale)).toFixed(2);
+                let width = part.offsetWidth;
+                let height = part.offsetHeight;
+
+                // Discount the negative margin when dealing with the top part.
+                if (part.classList.contains("top")) {
+                    height -= 4;
+                }
+
+                width = (new Number(width / scale)).toFixed(2);
+                height = (new Number(height / scale)).toFixed(2);
                 part.innerHTML = `
                     <span class='part-name'>${part.dataset.name}</span>
                     <span class='measurements'>${width} x ${height} cm</span>
